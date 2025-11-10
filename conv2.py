@@ -24,6 +24,9 @@ current_messages = []
 
 @tool
 def shutdown_application():
+    """
+    shut down the voice assistance loop
+    """
     print("shutdown_application tool")
     stop_event.set()
     return "Application shutting down."
