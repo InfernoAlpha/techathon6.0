@@ -24,11 +24,7 @@ current_messages = []
 
 @tool
 def shutdown_application():
-    """
-    Shuts down the entire voice assistant application. 
-    Call this tool to close the conversation.
-    """
-    print("Graph: Running shutdown_application tool...")
+    print("shutdown_application tool")
     stop_event.set()
     return "Application shutting down."
 
@@ -37,7 +33,6 @@ llm_with_tools = ChatOpenAI(model="gpt-4o").bind_tools(tools)
 openai_client = OpenAI()
 
 def generate_tts(text: str, file_path: str) -> str:
-    """Generates TTS audio and saves it to a file."""
     try:
         with openai_client.audio.speech.with_streaming_response.create(
             model="tts-1",
@@ -47,14 +42,10 @@ def generate_tts(text: str, file_path: str) -> str:
             response.stream_to_file(file_path)
         return file_path
     except Exception as e:
-        print(f"[TTS Error: {e}]")
+        print(f"TTS error: {e}")
         return None
 
 def audio_player_thread():
-    """
-    This thread runs in the background, playing audio files
-    from the 'audio_queue' as they become available.
-    """
     while not stop_event.is_set():
         try:
             file_path = audio_queue.get(timeout=1)
@@ -63,7 +54,7 @@ def audio_player_thread():
                 continue
             
             if not os.path.exists(file_path):
-                print(f"[Audio Player Error]: File '{file_path}' does not exist. Check write permissions in your directory.")
+                print(f"Audio player error: file '{file_path}' does not exist.")
                 continue
 
             pygame.mixer.music.load(file_path)
@@ -79,23 +70,20 @@ def audio_player_thread():
             try:
                 os.remove(file_path)
             except PermissionError as e:
-                print(f"[Audio cleanup warning]: Could not delete '{file_path}'. File is likely still locked. {e}")
+                print(f"Audio cleanup warning: could not delete '{file_path}'. file still locked or being accessed. {e}")
             except Exception as e:
-                print(f"[Audio cleanup error]: {e}")
+                print(f"Audio cleanup error: {e}")
 
         except queue.Empty:
             continue
-    print("[Audio player thread shutting down...]")
+    print("Audio player thread shutting down")
 
 def audio_callback(recognizer, audio_data):
-    """
-    This is called by the `listen_in_background` thread when
-    the user stops speaking.
-    """
-    print("\n[User spoke...]")
+
+    print("\nUser spoke")
     
     if pygame.mixer.music.get_busy():
-        print("[Interrupting AI playback...]")
+        print("Interrupting AI playback")
         pygame.mixer.music.stop()
 
     while not audio_queue.empty():
@@ -106,26 +94,22 @@ def audio_callback(recognizer, audio_data):
         except queue.Empty:
             break
         except Exception as e:
-            print(f"[Audio queue clear error: {e}]")
+            print(f"audio queue clear error: {e}]")
     
-    print("[Interrupting LLM generation...]")
+    print("interrupting LLM gen")
     interrupt_event.set()
 
-    print("\n[Transcribing...]")
+    print("\ntranscribing")
     try:
         text = recognizer.recognize_openai(audio_data)
         if text.strip():
             text_queue.put(text)
     except sr.UnknownValueError:
-        print("[Could not understand audio]")
+        print("could not understand audio")
     except sr.RequestError as e:
-        print(f"[Whisper API error: {e}]")
+        print(f"whisper API error: {e}")
 
 def main_processing_loop(context:str=None):
-    """
-    This runs on the main thread, waiting for text from the queue,
-    streaming the LLM, generating TTS, and queueing audio.
-    """
     # global current_messages
     if context is not None:
         print("context available")
@@ -182,7 +166,7 @@ def main_processing_loop(context:str=None):
                 current_messages.append(full_ai_response)
 
             if full_ai_response and full_ai_response.tool_calls:
-                print(f"[Tool call detected: {full_ai_response.tool_calls}]")
+                print(f"tool call : {full_ai_response.tool_calls}")
                 tool_results = []
                 for tool_call in full_ai_response.tool_calls:
                     if tool_call['name'] == "log_slots_booked_data":
@@ -200,10 +184,9 @@ def main_processing_loop(context:str=None):
         except queue.Empty:
             continue
         except Exception as e:
-            print(f"[Main loop error: {e}]")
+            print(f"main loop error: {e}")
             
     audio_queue.put(None)
-    print("[Main processing loop shutting down...]")
     current_messages.clear()
     return response
 
@@ -212,26 +195,25 @@ if __name__ == "__main__":
     
     mic = sr.Microphone()
     with mic as source:
-        print("[Calibrating for ambient noise...]")
+        print("calibrating for ambient noise")
         recognizer.adjust_for_ambient_noise(source, duration=2)
     recognizer.dynamic_energy_threshold = False
     recognizer.energy_threshold = max(recognizer.energy_threshold, 1500)
     recognizer.pause_threshold = 0.9
     recognizer.non_speaking_duration = 0.2
 
-    print("[Starting background listener... Speak now.]")
+    print("starting background listener. you can speak now")
     stop_listening = recognizer.listen_in_background(mic, audio_callback)
     
     player_thread = threading.Thread(target=audio_player_thread)
     player_thread.start()
     
     try:
-        main_processing_loop("you are a sales support of a big car manufacturing company. your job is to convence the customer to avail a slot for your company's maintenence garages. be persuasive and convincing")
+        main_processing_loop("prompt here")
     except KeyboardInterrupt:
-        print("\n[KeyboardInterrupt detected, shutting down...]")
+        print("\n shutting down")
         stop_event.set()
     
-    print("\n[Shutting down...]")
     
     if stop_listening:
         stop_listening(wait_for_stop=False)
@@ -239,4 +221,3 @@ if __name__ == "__main__":
     player_thread.join()
     
     pygame.mixer.quit()
-    print("[Application closed.]")
