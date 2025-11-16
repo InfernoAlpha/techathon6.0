@@ -44,6 +44,14 @@ def model_inference(data:model_schema) -> dict:
     """
     tool used to asses the vehicle condition based on the parameters given
     """
+    model = XGBClassifier(objective="binary:logistic",
+        eval_metric="logloss",
+        learning_rate=0.1,
+        max_depth=5,
+        n_estimators=500,
+        subsample=0.8,
+        colsample_bytree=0.8
+    )
     model.load_model("model.json")
     print("inferencing model")
     dataframe = pd.DataFrame([data.model_dump(by_alias=True)])

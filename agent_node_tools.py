@@ -70,14 +70,14 @@ def feedback_init(state:automotive_state):
 def comunication_init(prompt):
     def customer_comunication(state:automotive_state):
         recognizer = sr.Recognizer()
-        mic = sr.Microphone()
+        mic = sr.Microphone(device_index=0)
         stop_event.clear()
         pygame.mixer.init()
         with mic as source:
             print("[Calibrating for ambient noise...]")
             recognizer.adjust_for_ambient_noise(source, duration=2)
         recognizer.dynamic_energy_threshold = False
-        recognizer.energy_threshold = max(recognizer.energy_threshold, 1500)
+        recognizer.energy_threshold = max(recognizer.energy_threshold, 500)
         recognizer.pause_threshold = 0.9
         recognizer.non_speaking_duration = 0.2
 
