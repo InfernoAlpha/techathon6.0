@@ -1,0 +1,8 @@
+*.db
+__pycache__/
+*.py[cod]
+.venv/
+.vscode/
+*.env
+*.sql
+mock_database_services.py
